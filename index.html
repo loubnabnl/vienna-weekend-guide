@@ -176,6 +176,25 @@ section { padding: 80px 24px; }
 .weather-desc { font-size: 0.85rem; color: var(--text-light); }
 .weather-detail { font-size: 0.78rem; color: var(--gold-dark); margin-top: 8px; }
 
+/* FILTER TABS */
+.filter-tabs {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px;
+}
+.filter-tab {
+  padding: 10px 20px; border-radius: 24px;
+  font-size: 0.82rem; font-weight: 500;
+  border: 1.5px solid var(--sand);
+  background: var(--white);
+  color: var(--text-light);
+  cursor: pointer; transition: all 0.25s ease;
+  user-select: none;
+}
+.filter-tab:hover { border-color: var(--gold); color: var(--text); }
+.filter-tab.active {
+  background: var(--text); color: var(--white);
+  border-color: var(--text);
+}
+
 /* CARDS GRID */
 .cards-grid {
   display: grid;
@@ -192,6 +211,7 @@ section { padding: 80px 24px; }
   position: relative;
   overflow: hidden;
 }
+.card.hidden { display: none; }
 .card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
@@ -213,6 +233,11 @@ section { padding: 80px 24px; }
   font-family: 'Playfair Display', serif;
   font-size: 1.3rem; font-weight: 600; margin-bottom: 8px;
 }
+.card h3 a {
+  color: inherit; text-decoration: none;
+  transition: color 0.2s;
+}
+.card h3 a:hover { color: var(--terracotta); }
 .card p { font-size: 0.9rem; color: var(--text-light); line-height: 1.6; margin-bottom: 12px; }
 .card-address { font-size: 0.8rem; color: var(--gold-dark); }
 .card-address a {
@@ -309,6 +334,8 @@ footer .footer-title {
   .itinerary-item { flex-direction: column; gap: 4px; }
   .itinerary-time { min-width: auto; }
   .hero { padding: 100px 20px 60px; min-height: 90vh; }
+  .filter-tabs { gap: 6px; }
+  .filter-tab { padding: 8px 14px; font-size: 0.78rem; }
 }
 
 /* Animations */
@@ -319,9 +346,7 @@ footer .footer-title {
 .fade-in.visible { opacity: 1; transform: translateY(0); }
 
 /* Custom Leaflet markers */
-.custom-marker {
-  background: none; border: none;
-}
+.custom-marker { background: none; border: none; }
 .marker-pin {
   width: 32px; height: 32px;
   border-radius: 50% 50% 50% 0;
@@ -329,10 +354,7 @@ footer .footer-title {
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
-.marker-pin span {
-  transform: rotate(45deg);
-  font-size: 14px;
-}
+.marker-pin span { transform: rotate(45deg); font-size: 14px; }
 .marker-coffee { background: #D4A574; }
 .marker-brunch { background: #E8956A; }
 .marker-art { background: #9B72AA; }
@@ -357,6 +379,19 @@ footer .footer-title {
   font-family: 'Playfair Display', serif;
   font-size: 1rem;
 }
+.leaflet-popup-content a.popup-link {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1.5px solid #C4A882;
+  transition: color 0.2s;
+}
+.leaflet-popup-content a.popup-link:hover { color: #C17F59; }
+.leaflet-popup-content .popup-directions {
+  display: inline-block; margin-top: 8px;
+  font-size: 0.78rem; color: #A68B60;
+  text-decoration: none; font-weight: 500;
+}
+.leaflet-popup-content .popup-directions:hover { color: #C17F59; }
 </style>
 </head>
 <body>
@@ -397,7 +432,7 @@ footer .footer-title {
   <div class="container">
     <p class="section-label">Explore</p>
     <h2 class="section-title">Your Vienna Map</h2>
-    <p class="section-desc">Everything pinned and color-coded. Your Airbnb is in the 20th district, right by Augarten and the Danube Canal.</p>
+    <p class="section-desc">Everything pinned and color-coded. Your Airbnb is in the 20th district, right by Augarten and the Danube Canal. Click any pin for details + Google Maps link.</p>
     <div id="map"></div>
     <div class="map-legend">
       <span><span class="legend-dot" style="background:#E74C3C"></span> Airbnb</span>
@@ -417,10 +452,8 @@ footer .footer-title {
   <div class="container">
     <p class="section-label">Forecast</p>
     <h2 class="section-title">Vienna Weather</h2>
-    <p class="section-desc">Live forecast for your trip dates. April in Vienna is lovely — expect mild spring weather, but pack a light jacket for evenings.</p>
-    <div class="weather-grid" id="weather-grid">
-      <div class="weather-card"><p style="color:var(--text-light);padding:20px;">Loading forecast...</p></div>
-    </div>
+    <p class="section-desc">Actual weather for your trip dates. April in Vienna is spring — pack layers and a light jacket for evenings.</p>
+    <div class="weather-grid" id="weather-grid"></div>
   </div>
 </section>
 
@@ -430,220 +463,232 @@ footer .footer-title {
     <p class="section-label">Curated</p>
     <h2 class="section-title">Where to Go</h2>
     <p class="section-desc">Hand-picked spots for coffee lovers, art heads, and flaneurs. Focused around the 1st, 2nd, 9th, and 20th districts.</p>
-    <div class="cards-grid">
+
+    <div class="filter-tabs">
+      <div class="filter-tab active" data-filter="all">All</div>
+      <div class="filter-tab" data-filter="coffee">&#9749; Coffee</div>
+      <div class="filter-tab" data-filter="brunch">&#127859; Brunch</div>
+      <div class="filter-tab" data-filter="art">&#127912; Art & Museums</div>
+      <div class="filter-tab" data-filter="park">&#127793; Parks</div>
+      <div class="filter-tab" data-filter="landmark">&#127963; Landmarks</div>
+      <div class="filter-tab" data-filter="shop">&#128092; Shops</div>
+    </div>
+
+    <div class="cards-grid" id="places-grid">
 
       <!-- COFFEE -->
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="coffee">
         <span class="card-emoji">&#9749;</span>
         <span class="card-category cat-coffee">Coffee</span>
         <span class="card-district">2nd</span>
-        <h3>Jonas Reindl Coffee Roasters</h3>
+        <h3><a href="https://www.google.com/maps/search/Jonas+Reindl+Coffee+Roasters+Vienna" target="_blank">Jonas Reindl Coffee Roasters</a></h3>
         <p>Specialty roaster with a minimalist space. Excellent filter coffee and single origins. A local favorite in Leopoldstadt.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Jonas+Reindl+Coffee+Roasters+Vienna" target="_blank">Wehlistra&szlig;e 18, 1020</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Jonas+Reindl+Coffee+Roasters+Vienna" target="_blank">Wehlistra&szlig;e 18, 1020 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="coffee">
         <span class="card-emoji">&#9749;</span>
         <span class="card-category cat-coffee">Coffee</span>
         <span class="card-district">9th</span>
-        <h3>Caf&eacute; Couture</h3>
+        <h3><a href="https://www.google.com/maps/search/Café+Couture+Garnisongasse+Vienna" target="_blank">Caf&eacute; Couture</a></h3>
         <p>Tiny, beautiful third-wave spot in Alsergrund. The latte art is impeccable, the vibe calm and creative. Try the flat white.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Café+Couture+Garnisongasse+Vienna" target="_blank">Garnisongasse 18, 1090</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Café+Couture+Garnisongasse+Vienna" target="_blank">Garnisongasse 18, 1090 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
-        <span class="card-emoji">&#9749;</span>
-        <span class="card-category cat-coffee">Coffee</span>
-        <span class="card-district">7th</span>
-        <h3>Kaffeefabrik</h3>
-        <p>No-frills specialty coffee with obsessive attention to brewing. Standing-room only, take your espresso like a local.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Kaffeefabrik+Favoritenstraße+Vienna" target="_blank">Favoritenstra&szlig;e 4-6, 1040</a></p>
-      </div>
-
-      <div class="card fade-in">
-        <span class="card-emoji">&#9749;</span>
-        <span class="card-category cat-coffee">Coffee</span>
-        <span class="card-district">1st</span>
-        <h3>Caf&eacute; Central</h3>
-        <p>Iconic Viennese coffeehouse under vaulted ceilings. Yes, it's touristy — but the architecture and Apfelstrudel are worth it once.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Café+Central+Herrengasse+Vienna" target="_blank">Herrengasse 14, 1010</a></p>
-      </div>
-
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="coffee">
         <span class="card-emoji">&#9749;</span>
         <span class="card-category cat-coffee">Coffee</span>
         <span class="card-district">4th</span>
-        <h3>CoffeePirates</h3>
+        <h3><a href="https://www.google.com/maps/search/Kaffeefabrik+Vienna" target="_blank">Kaffeefabrik</a></h3>
+        <p>No-frills specialty coffee with obsessive attention to brewing. Standing-room only, take your espresso like a local.</p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Kaffeefabrik+Vienna" target="_blank">Favoritenstra&szlig;e 4-6, 1040 &rarr;</a></p>
+      </div>
+
+      <div class="card fade-in" data-category="coffee">
+        <span class="card-emoji">&#9749;</span>
+        <span class="card-category cat-coffee">Coffee</span>
+        <span class="card-district">1st</span>
+        <h3><a href="https://www.google.com/maps/search/Café+Central+Herrengasse+Vienna" target="_blank">Caf&eacute; Central</a></h3>
+        <p>Iconic Viennese coffeehouse under vaulted ceilings. Yes, it's touristy — but the architecture and Apfelstrudel are worth it once.</p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Café+Central+Herrengasse+Vienna" target="_blank">Herrengasse 14, 1010 &rarr;</a></p>
+      </div>
+
+      <div class="card fade-in" data-category="coffee">
+        <span class="card-emoji">&#9749;</span>
+        <span class="card-category cat-coffee">Coffee</span>
+        <span class="card-district">7th</span>
+        <h3><a href="https://www.google.com/maps/search/CoffeePirates+Vienna" target="_blank">CoffeePirates</a></h3>
         <p>Cozy specialty coffee shop near Naschmarkt. Great espresso drinks, friendly baristas, and a cool indie vibe.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/CoffeePirates+Spittelberggasse+Vienna" target="_blank">Spittelberggasse 17, 1070</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/CoffeePirates+Vienna" target="_blank">Spittelberggasse 17, 1070 &rarr;</a></p>
       </div>
 
       <!-- BRUNCH -->
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="brunch">
         <span class="card-emoji">&#127859;</span>
         <span class="card-category cat-brunch">Brunch</span>
         <span class="card-district">2nd</span>
-        <h3>Harvest</h3>
+        <h3><a href="https://www.google.com/maps/search/Harvest+Karmeliterplatz+Vienna" target="_blank">Harvest</a></h3>
         <p>Plant-forward brunch with seasonal bowls, homemade granola, and gorgeous plating. The kind of place you linger for hours.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Harvest+Karmeliterplatz+Vienna" target="_blank">Karmeliterplatz 1, 1020</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Harvest+Karmeliterplatz+Vienna" target="_blank">Karmeliterplatz 1, 1020 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="brunch">
         <span class="card-emoji">&#127859;</span>
         <span class="card-category cat-brunch">Brunch</span>
-        <span class="card-district">9th</span>
-        <h3>Vollpension</h3>
+        <span class="card-district">4th</span>
+        <h3><a href="https://www.google.com/maps/search/Vollpension+Schleifmühlgasse+Vienna" target="_blank">Vollpension</a></h3>
         <p>Grandmas bake the cakes here. Seriously. A social enterprise caf&eacute; with unbeatable homemade Austrian pastries and charm.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Vollpension+Schleifmühlgasse+Vienna" target="_blank">Schleifm&uuml;hlgasse 16, 1040</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Vollpension+Schleifmühlgasse+Vienna" target="_blank">Schleifm&uuml;hlgasse 16, 1040 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="brunch">
         <span class="card-emoji">&#127859;</span>
         <span class="card-category cat-brunch">Brunch</span>
         <span class="card-district">7th</span>
-        <h3>Ramasuri</h3>
+        <h3><a href="https://www.google.com/maps/search/Ramasuri+Vienna" target="_blank">Ramasuri</a></h3>
         <p>Eclectic, colorful brunch spot in Neubau. Creative dishes, amazing Shakshuka, and strong weekend brunch energy.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Ramasuri+Vienna" target="_blank">Kirchengasse 47, 1070</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Ramasuri+Vienna" target="_blank">Kirchengasse 47, 1070 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="brunch">
         <span class="card-emoji">&#127859;</span>
         <span class="card-category cat-brunch">Brunch</span>
         <span class="card-district">2nd</span>
-        <h3>Caf&eacute; Ansari</h3>
+        <h3><a href="https://www.google.com/maps/search/Café+Ansari+Praterstraße+Vienna" target="_blank">Caf&eacute; Ansari</a></h3>
         <p>Middle-Eastern meets Viennese brunch. Beautiful interiors, killer Eggs Benedict, and one of the best brunches in the 2nd district.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Café+Ansari+Praterstraße+Vienna" target="_blank">Praterstra&szlig;e 15, 1020</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Café+Ansari+Praterstraße+Vienna" target="_blank">Praterstra&szlig;e 15, 1020 &rarr;</a></p>
       </div>
 
       <!-- ART & MUSEUMS -->
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="art">
         <span class="card-emoji">&#127912;</span>
         <span class="card-category cat-art">Art & Museum</span>
         <span class="card-district">1st</span>
-        <h3>Kunsthistorisches Museum</h3>
+        <h3><a href="https://www.google.com/maps/search/Kunsthistorisches+Museum+Vienna" target="_blank">Kunsthistorisches Museum</a></h3>
         <p>One of the world's greatest art museums. Bruegel, Vermeer, Caravaggio — in a building that's itself a masterpiece. Don't miss the cupola caf&eacute;.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Kunsthistorisches+Museum+Vienna" target="_blank">Maria-Theresien-Platz, 1010</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Kunsthistorisches+Museum+Vienna" target="_blank">Maria-Theresien-Platz, 1010 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="art">
         <span class="card-emoji">&#127912;</span>
         <span class="card-category cat-art">Art & Museum</span>
         <span class="card-district">3rd</span>
-        <h3>Belvedere</h3>
+        <h3><a href="https://www.google.com/maps/search/Belvedere+Museum+Vienna" target="_blank">Belvedere</a></h3>
         <p>Klimt's "The Kiss" lives here. Stunning Baroque palace with incredible art nouveau collection and gorgeous gardens.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Belvedere+Museum+Vienna" target="_blank">Prinz-Eugen-Stra&szlig;e 27, 1030</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Belvedere+Museum+Vienna" target="_blank">Prinz-Eugen-Stra&szlig;e 27, 1030 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="art">
         <span class="card-emoji">&#127912;</span>
         <span class="card-category cat-art">Art & Museum</span>
         <span class="card-district">7th</span>
-        <h3>mumok</h3>
+        <h3><a href="https://www.google.com/maps/search/mumok+Vienna" target="_blank">mumok</a></h3>
         <p>Museum of Modern Art in the MuseumsQuartier. Bold contemporary exhibitions in a dark basalt cube. Always surprising.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/mumok+Vienna" target="_blank">Museumsplatz 1, 1070</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/mumok+Vienna" target="_blank">Museumsplatz 1, 1070 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="art">
         <span class="card-emoji">&#127912;</span>
         <span class="card-category cat-art">Art & Museum</span>
         <span class="card-district">1st</span>
-        <h3>Albertina Modern</h3>
+        <h3><a href="https://www.google.com/maps/search/Albertina+Modern+Vienna" target="_blank">Albertina Modern</a></h3>
         <p>Contemporary art in the Karlsplatz area. Rotating exhibitions of post-war and contemporary art in a beautifully redesigned space.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Albertina+Modern+Vienna" target="_blank">Karlsplatz 5, 1010</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Albertina+Modern+Vienna" target="_blank">Karlsplatz 5, 1010 &rarr;</a></p>
       </div>
 
       <!-- PARKS -->
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="park">
         <span class="card-emoji">&#127793;</span>
         <span class="card-category cat-park">Park</span>
         <span class="card-district">2nd / 20th</span>
-        <h3>Augarten</h3>
+        <h3><a href="https://www.google.com/maps/search/Augarten+Vienna" target="_blank">Augarten</a></h3>
         <p>Your neighborhood park! Baroque gardens, a porcelain factory, and WWII flak towers. Perfect for a morning walk — 10 min from the Airbnb.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Augarten+Vienna" target="_blank">Obere Augartenstra&szlig;e 1, 1020</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Augarten+Vienna" target="_blank">Obere Augartenstra&szlig;e 1, 1020 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="park">
         <span class="card-emoji">&#127793;</span>
         <span class="card-category cat-park">Park</span>
         <span class="card-district">2nd</span>
-        <h3>Prater & Hauptallee</h3>
+        <h3><a href="https://www.google.com/maps/search/Prater+Hauptallee+Vienna" target="_blank">Prater & Hauptallee</a></h3>
         <p>Vienna's vast green lung. Walk the 4.5 km Hauptallee among chestnut trees, or visit the iconic Riesenrad Ferris wheel.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Prater+Hauptallee+Vienna" target="_blank">Prater, 1020</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Prater+Hauptallee+Vienna" target="_blank">Prater, 1020 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="park">
         <span class="card-emoji">&#127793;</span>
         <span class="card-category cat-park">Park</span>
         <span class="card-district">20th</span>
-        <h3>Danube Canal Walk</h3>
+        <h3><a href="https://www.google.com/maps/search/Donaukanal+Vienna" target="_blank">Danube Canal Walk</a></h3>
         <p>The graffiti-lined canal banks are Vienna's urban edge. Street art, pop-up bars in summer, and a great walk from the 20th into the center.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Donaukanal+Vienna" target="_blank">Donaukanal, along the 20th district</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Donaukanal+Vienna" target="_blank">Donaukanal, along the 20th district &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="park">
         <span class="card-emoji">&#127793;</span>
         <span class="card-category cat-park">Park</span>
         <span class="card-district">1st</span>
-        <h3>Volksgarten</h3>
+        <h3><a href="https://www.google.com/maps/search/Volksgarten+Vienna" target="_blank">Volksgarten</a></h3>
         <p>Elegant rose garden right by the Hofburg. Lovely for a sunset sit-down with views of the Heldenplatz and the parliament.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Volksgarten+Vienna" target="_blank">Volksgarten, 1010</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Volksgarten+Vienna" target="_blank">Volksgarten, 1010 &rarr;</a></p>
       </div>
 
       <!-- LANDMARKS -->
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="landmark">
         <span class="card-emoji">&#127963;</span>
         <span class="card-category cat-landmark">Landmark</span>
         <span class="card-district">1st</span>
-        <h3>Stephansdom</h3>
+        <h3><a href="https://www.google.com/maps/search/Stephansdom+Vienna" target="_blank">Stephansdom</a></h3>
         <p>Vienna's Gothic heart. Climb the 343 steps of the south tower for panoramic views. The tiled roof is mesmerizing from below.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Stephansdom+Vienna" target="_blank">Stephansplatz, 1010</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Stephansdom+Vienna" target="_blank">Stephansplatz, 1010 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="landmark">
         <span class="card-emoji">&#127963;</span>
         <span class="card-category cat-landmark">Landmark</span>
         <span class="card-district">6th</span>
-        <h3>Naschmarkt</h3>
+        <h3><a href="https://www.google.com/maps/search/Naschmarkt+Vienna" target="_blank">Naschmarkt</a></h3>
         <p>Vienna's most famous market. Go Saturday morning for the flea market extension. Olives, spices, vintage finds, and incredible street food.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Naschmarkt+Vienna" target="_blank">Linke Wienzeile, 1060</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Naschmarkt+Vienna" target="_blank">Linke Wienzeile, 1060 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="landmark">
         <span class="card-emoji">&#127963;</span>
         <span class="card-category cat-landmark">Landmark</span>
         <span class="card-district">7th</span>
-        <h3>MuseumsQuartier</h3>
+        <h3><a href="https://www.google.com/maps/search/MuseumsQuartier+Vienna" target="_blank">MuseumsQuartier</a></h3>
         <p>One of the world's largest cultural complexes. Hang out in the colorful courtyard benches — it's Vienna's living room.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/MuseumsQuartier+Vienna" target="_blank">Museumsplatz 1, 1070</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/MuseumsQuartier+Vienna" target="_blank">Museumsplatz 1, 1070 &rarr;</a></p>
       </div>
 
       <!-- SHOPS -->
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="shop">
         <span class="card-emoji">&#128092;</span>
         <span class="card-category cat-shop">Shop</span>
         <span class="card-district">7th</span>
-        <h3>Burggasse 24</h3>
+        <h3><a href="https://www.google.com/maps/search/Burggasse+24+Vienna" target="_blank">Burggasse 24</a></h3>
         <p>Concept store-meets-caf&eacute; in Neubau. Curated vintage, local design, and good coffee in one gorgeous space. Very bobo.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Burggasse+24+Vienna" target="_blank">Burggasse 24, 1070</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Burggasse+24+Vienna" target="_blank">Burggasse 24, 1070 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="shop">
         <span class="card-emoji">&#128092;</span>
         <span class="card-category cat-shop">Shop</span>
         <span class="card-district">6th</span>
-        <h3>Die Sellerie</h3>
+        <h3><a href="https://www.google.com/maps/search/Die+Sellerie+Vienna+vintage" target="_blank">Die Sellerie</a></h3>
         <p>Vintage clothing and accessories in the Naschmarkt area. Well curated, fair prices, and a treasure trove for unique finds.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/Die+Sellerie+Vienna" target="_blank">Wienzeile Naschmarkt, 1060</a></p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Die+Sellerie+Vienna+vintage" target="_blank">Wienzeile Naschmarkt, 1060 &rarr;</a></p>
       </div>
 
-      <div class="card fade-in">
+      <div class="card fade-in" data-category="shop">
         <span class="card-emoji">&#128092;</span>
         <span class="card-category cat-shop">Shop</span>
         <span class="card-district">7th</span>
-        <h3>Stilwerk Wien</h3>
-        <p>Design and furniture lovers' paradise in the 7th. Think Scandinavian meets Viennese modernism. Great for home inspo.</p>
-        <p class="card-address"><a href="https://www.google.com/maps/search/7th+district+design+shops+Neubau+Vienna" target="_blank">Neubaugasse, 1070</a></p>
+        <h3><a href="https://www.google.com/maps/search/Sch%C3%B6nbrunner+Stöckel+Vienna" target="_blank">Neubaugasse Indie Walk</a></h3>
+        <p>The 7th district's main shopping street is packed with indie boutiques, record shops, and design stores. Just wander and discover.</p>
+        <p class="card-address"><a href="https://www.google.com/maps/search/Neubaugasse+Vienna" target="_blank">Neubaugasse, 1070 &rarr;</a></p>
       </div>
+
     </div>
   </div>
 </section>
@@ -900,7 +945,7 @@ footer .footer-title {
 
 <script>
 // ========== MAP ==========
-const AIRBNB = [48.2335, 16.3665]; // Brigittenauer Lände 16/2, 1200 Vienna
+const AIRBNB = [48.2335, 16.3665];
 
 const map = L.map('map', {
   scrollWheelZoom: false,
@@ -914,96 +959,128 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
 function createMarker(className, emoji) {
   return L.divIcon({
     className: 'custom-marker',
-    html: `<div class="marker-pin ${className}"><span>${emoji}</span></div>`,
+    html: '<div class="marker-pin ' + className + '"><span>' + emoji + '</span></div>',
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
   });
 }
 
+function gmapsUrl(name, address) {
+  return 'https://www.google.com/maps/search/' + encodeURIComponent(name + ' ' + address + ' Vienna');
+}
+
 const markers = [
-  // Airbnb
-  { lat: 48.2335, lng: 16.3665, name: 'Your Airbnb', desc: 'Brigittenauer Lände 16/2, 1200', type: 'airbnb', emoji: '🏠' },
+  { lat: 48.2335, lng: 16.3665, name: 'Your Airbnb', desc: 'Brigittenauer Lände 16/2, 1200', type: 'airbnb', emoji: '\u{1F3E0}' },
   // Coffee
-  { lat: 48.2170, lng: 16.3820, name: 'Jonas Reindl Coffee', desc: 'Wehlistraße 18, 1020', type: 'coffee', emoji: '☕' },
-  { lat: 48.2200, lng: 16.3545, name: 'Café Couture', desc: 'Garnisongasse 18, 1090', type: 'coffee', emoji: '☕' },
-  { lat: 48.1985, lng: 16.3700, name: 'Kaffeefabrik', desc: 'Favoritenstraße 4-6, 1040', type: 'coffee', emoji: '☕' },
-  { lat: 48.2105, lng: 16.3650, name: 'Café Central', desc: 'Herrengasse 14, 1010', type: 'coffee', emoji: '☕' },
-  { lat: 48.2020, lng: 16.3520, name: 'CoffeePirates', desc: 'Spittelberggasse 17, 1070', type: 'coffee', emoji: '☕' },
+  { lat: 48.2170, lng: 16.3820, name: 'Jonas Reindl Coffee', desc: 'Wehlistraße 18, 1020', type: 'coffee', emoji: '\u2615' },
+  { lat: 48.2200, lng: 16.3545, name: 'Café Couture', desc: 'Garnisongasse 18, 1090', type: 'coffee', emoji: '\u2615' },
+  { lat: 48.1985, lng: 16.3700, name: 'Kaffeefabrik', desc: 'Favoritenstraße 4-6, 1040', type: 'coffee', emoji: '\u2615' },
+  { lat: 48.2105, lng: 16.3650, name: 'Café Central', desc: 'Herrengasse 14, 1010', type: 'coffee', emoji: '\u2615' },
+  { lat: 48.2020, lng: 16.3520, name: 'CoffeePirates', desc: 'Spittelberggasse 17, 1070', type: 'coffee', emoji: '\u2615' },
   // Brunch
-  { lat: 48.2165, lng: 16.3770, name: 'Harvest', desc: 'Karmeliterplatz 1, 1020', type: 'brunch', emoji: '🍳' },
-  { lat: 48.1975, lng: 16.3635, name: 'Vollpension', desc: 'Schleifmühlgasse 16, 1040', type: 'brunch', emoji: '🍳' },
-  { lat: 48.2050, lng: 16.3475, name: 'Ramasuri', desc: 'Kirchengasse 47, 1070', type: 'brunch', emoji: '🍳' },
-  { lat: 48.2155, lng: 16.3835, name: 'Café Ansari', desc: 'Praterstraße 15, 1020', type: 'brunch', emoji: '🍳' },
+  { lat: 48.2165, lng: 16.3770, name: 'Harvest', desc: 'Karmeliterplatz 1, 1020', type: 'brunch', emoji: '\u{1F373}' },
+  { lat: 48.1975, lng: 16.3635, name: 'Vollpension', desc: 'Schleifmühlgasse 16, 1040', type: 'brunch', emoji: '\u{1F373}' },
+  { lat: 48.2050, lng: 16.3475, name: 'Ramasuri', desc: 'Kirchengasse 47, 1070', type: 'brunch', emoji: '\u{1F373}' },
+  { lat: 48.2155, lng: 16.3835, name: 'Café Ansari', desc: 'Praterstraße 15, 1020', type: 'brunch', emoji: '\u{1F373}' },
   // Art
-  { lat: 48.2038, lng: 16.3616, name: 'Kunsthistorisches Museum', desc: 'Maria-Theresien-Platz, 1010', type: 'art', emoji: '🎨' },
-  { lat: 48.1914, lng: 16.3808, name: 'Belvedere', desc: 'Prinz-Eugen-Straße 27, 1030', type: 'art', emoji: '🎨' },
-  { lat: 48.2034, lng: 16.3574, name: 'mumok', desc: 'Museumsplatz 1, 1070', type: 'art', emoji: '🎨' },
-  { lat: 48.2002, lng: 16.3700, name: 'Albertina Modern', desc: 'Karlsplatz 5, 1010', type: 'art', emoji: '🎨' },
+  { lat: 48.2038, lng: 16.3616, name: 'Kunsthistorisches Museum', desc: 'Maria-Theresien-Platz, 1010', type: 'art', emoji: '\u{1F3A8}' },
+  { lat: 48.1914, lng: 16.3808, name: 'Belvedere', desc: 'Prinz-Eugen-Straße 27, 1030', type: 'art', emoji: '\u{1F3A8}' },
+  { lat: 48.2034, lng: 16.3574, name: 'mumok', desc: 'Museumsplatz 1, 1070', type: 'art', emoji: '\u{1F3A8}' },
+  { lat: 48.2002, lng: 16.3700, name: 'Albertina Modern', desc: 'Karlsplatz 5, 1010', type: 'art', emoji: '\u{1F3A8}' },
   // Parks
-  { lat: 48.2245, lng: 16.3770, name: 'Augarten', desc: 'Baroque garden, 10 min walk', type: 'park', emoji: '🌱' },
-  { lat: 48.2127, lng: 16.3980, name: 'Prater & Hauptallee', desc: 'Vienna\'s green lung', type: 'park', emoji: '🌱' },
-  { lat: 48.2260, lng: 16.3680, name: 'Danube Canal', desc: 'Street art & urban vibes', type: 'park', emoji: '🌱' },
-  { lat: 48.2080, lng: 16.3605, name: 'Volksgarten', desc: 'Rose garden by the Hofburg', type: 'park', emoji: '🌱' },
+  { lat: 48.2245, lng: 16.3770, name: 'Augarten', desc: 'Obere Augartenstraße 1, 1020', type: 'park', emoji: '\u{1F331}' },
+  { lat: 48.2127, lng: 16.3980, name: 'Prater & Hauptallee', desc: 'Prater, 1020', type: 'park', emoji: '\u{1F331}' },
+  { lat: 48.2260, lng: 16.3680, name: 'Danube Canal', desc: 'Donaukanal', type: 'park', emoji: '\u{1F331}' },
+  { lat: 48.2080, lng: 16.3605, name: 'Volksgarten', desc: 'Volksgarten, 1010', type: 'park', emoji: '\u{1F331}' },
   // Landmarks
-  { lat: 48.2084, lng: 16.3731, name: 'Stephansdom', desc: 'Vienna\'s Gothic cathedral', type: 'landmark', emoji: '⛪' },
-  { lat: 48.1992, lng: 16.3630, name: 'Naschmarkt', desc: 'Famous market + Sat flea market', type: 'landmark', emoji: '🏛' },
-  { lat: 48.2030, lng: 16.3585, name: 'MuseumsQuartier', desc: 'Cultural hub & courtyard', type: 'landmark', emoji: '🏛' },
+  { lat: 48.2084, lng: 16.3731, name: 'Stephansdom', desc: 'Stephansplatz, 1010', type: 'landmark', emoji: '\u26EA' },
+  { lat: 48.1992, lng: 16.3630, name: 'Naschmarkt', desc: 'Linke Wienzeile, 1060', type: 'landmark', emoji: '\u{1F3DB}' },
+  { lat: 48.2030, lng: 16.3585, name: 'MuseumsQuartier', desc: 'Museumsplatz 1, 1070', type: 'landmark', emoji: '\u{1F3DB}' },
   // Shops
-  { lat: 48.2055, lng: 16.3490, name: 'Burggasse 24', desc: 'Concept store + café', type: 'shop', emoji: '🛍' },
-  { lat: 48.1988, lng: 16.3620, name: 'Die Sellerie', desc: 'Vintage at Naschmarkt', type: 'shop', emoji: '🛍' },
+  { lat: 48.2055, lng: 16.3490, name: 'Burggasse 24', desc: 'Burggasse 24, 1070', type: 'shop', emoji: '\u{1F6CD}' },
+  { lat: 48.1988, lng: 16.3620, name: 'Die Sellerie', desc: 'Naschmarkt, 1060', type: 'shop', emoji: '\u{1F6CD}' },
   // Transport
-  { lat: 48.2285, lng: 16.3665, name: 'Friedensbrücke (U4)', desc: 'Closest U-Bahn, 12 min walk', type: 'transport', emoji: '🚇' },
-  { lat: 48.2340, lng: 16.3590, name: 'Dresdner Straße (U6)', desc: 'Alternative U-Bahn station', type: 'transport', emoji: '🚇' },
-  { lat: 48.2070, lng: 16.3780, name: 'Wien Mitte / CAT', desc: 'Airport train terminal', type: 'transport', emoji: '🚇' },
+  { lat: 48.2285, lng: 16.3665, name: 'Friedensbrücke (U4)', desc: 'Closest U-Bahn, 12 min walk', type: 'transport', emoji: '\u{1F687}' },
+  { lat: 48.2340, lng: 16.3590, name: 'Dresdner Straße (U6)', desc: 'Alternative U-Bahn station', type: 'transport', emoji: '\u{1F687}' },
+  { lat: 48.2070, lng: 16.3780, name: 'Wien Mitte / CAT', desc: 'Airport train terminal', type: 'transport', emoji: '\u{1F687}' },
 ];
 
-markers.forEach(m => {
-  const icon = createMarker(`marker-${m.type}`, m.emoji);
-  L.marker([m.lat, m.lng], { icon })
+markers.forEach(function(m) {
+  var icon = createMarker('marker-' + m.type, m.emoji);
+  var url = gmapsUrl(m.name, m.desc);
+  var popupHtml = '<a class="popup-link" href="' + url + '" target="_blank"><strong>' + m.name + '</strong></a><br>' +
+    m.desc + '<br><a class="popup-directions" href="' + url + '" target="_blank">Open in Google Maps &rarr;</a>';
+  L.marker([m.lat, m.lng], { icon: icon })
     .addTo(map)
-    .bindPopup(`<strong>${m.name}</strong><br>${m.desc}`);
+    .bindPopup(popupHtml);
 });
 
 // ========== WEATHER (actual recorded data for April 10-12, 2025) ==========
 (function loadWeather() {
-  const grid = document.getElementById('weather-grid');
-  const weatherData = [
-    { day: 'Friday Apr 10', icon: '🌦', temp: '6° — 12°C', desc: 'Light drizzle', detail: '💧 0.3 mm rain · 💨 25 km/h wind' },
-    { day: 'Saturday Apr 11', icon: '🌦', temp: '6° — 19°C', desc: 'Drizzle clearing to sun', detail: '💧 0.9 mm rain · 💨 26 km/h wind' },
-    { day: 'Sunday Apr 12', icon: '☁️', temp: '8° — 18°C', desc: 'Overcast, dry', detail: '💧 No rain · 💨 17 km/h wind' },
+  var grid = document.getElementById('weather-grid');
+  var weatherData = [
+    { day: 'Friday Apr 10', icon: '\u{1F326}', temp: '6\u00B0 \u2014 12\u00B0C', desc: 'Light drizzle', detail: '\u{1F4A7} 0.3 mm rain \u00B7 \u{1F4A8} 25 km/h wind' },
+    { day: 'Saturday Apr 11', icon: '\u{1F326}', temp: '6\u00B0 \u2014 19\u00B0C', desc: 'Drizzle clearing to sun', detail: '\u{1F4A7} 0.9 mm rain \u00B7 \u{1F4A8} 26 km/h wind' },
+    { day: 'Sunday Apr 12', icon: '\u2601\uFE0F', temp: '8\u00B0 \u2014 18\u00B0C', desc: 'Overcast, dry', detail: '\u{1F4A7} No rain \u00B7 \u{1F4A8} 17 km/h wind' },
   ];
-  grid.innerHTML = weatherData.map(d => `
-    <div class="weather-card">
-      <p class="weather-day">${d.day}</p>
-      <div class="weather-icon">${d.icon}</div>
-      <p class="weather-temp">${d.temp}</p>
-      <p class="weather-desc">${d.desc}</p>
-      <p class="weather-detail">${d.detail}</p>
-    </div>
-  `).join('');
+  grid.innerHTML = weatherData.map(function(d) {
+    return '<div class="weather-card">' +
+      '<p class="weather-day">' + d.day + '</p>' +
+      '<div class="weather-icon">' + d.icon + '</div>' +
+      '<p class="weather-temp">' + d.temp + '</p>' +
+      '<p class="weather-desc">' + d.desc + '</p>' +
+      '<p class="weather-detail">' + d.detail + '</p>' +
+    '</div>';
+  }).join('');
+})();
+
+// ========== CATEGORY FILTER TABS ==========
+(function initFilters() {
+  var tabs = document.querySelectorAll('.filter-tab');
+  var cards = document.querySelectorAll('#places-grid .card');
+
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var filter = this.getAttribute('data-filter');
+
+      // Update active tab
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      this.classList.add('active');
+
+      // Show/hide cards
+      cards.forEach(function(card) {
+        if (filter === 'all' || card.getAttribute('data-category') === filter) {
+          card.classList.remove('hidden');
+          card.classList.add('visible');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    });
+  });
 })();
 
 // ========== SCROLL ANIMATIONS ==========
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
     if (entry.isIntersecting) {
       entry.target.classList.add('visible');
     }
   });
 }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
-document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+document.querySelectorAll('.fade-in').forEach(function(el) { observer.observe(el); });
 
-// ========== SMOOTH NAV HIDE ON MOBILE ==========
-let lastScroll = 0;
-const nav = document.querySelector('nav');
-window.addEventListener('scroll', () => {
-  const currentScroll = window.pageYOffset;
+// ========== SMOOTH NAV HIDE ON SCROLL ==========
+var lastScroll = 0;
+var navEl = document.querySelector('nav');
+window.addEventListener('scroll', function() {
+  var currentScroll = window.pageYOffset;
   if (currentScroll > lastScroll && currentScroll > 200) {
-    nav.style.transform = 'translateY(-100%)';
+    navEl.style.transform = 'translateY(-100%)';
   } else {
-    nav.style.transform = 'translateY(0)';
+    navEl.style.transform = 'translateY(0)';
   }
   lastScroll = currentScroll;
 }, { passive: true });
