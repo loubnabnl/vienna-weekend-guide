@@ -433,6 +433,16 @@ footer .footer-title {
     <p class="section-label">Explore</p>
     <h2 class="section-title">Your Vienna Map</h2>
     <p class="section-desc">Everything pinned and color-coded. Your Airbnb is in the 20th district, right by Augarten and the Danube Canal. Click any pin for details + Google Maps link.</p>
+    <div class="filter-tabs" id="map-filters">
+      <div class="filter-tab active" data-map-filter="all">All</div>
+      <div class="filter-tab" data-map-filter="coffee">&#9749; Coffee</div>
+      <div class="filter-tab" data-map-filter="brunch">&#127859; Brunch</div>
+      <div class="filter-tab" data-map-filter="art">&#127912; Art</div>
+      <div class="filter-tab" data-map-filter="park">&#127793; Parks</div>
+      <div class="filter-tab" data-map-filter="landmark">&#127963; Landmarks</div>
+      <div class="filter-tab" data-map-filter="shop">&#128092; Shops</div>
+      <div class="filter-tab" data-map-filter="transport">&#128647; Transport</div>
+    </div>
     <div id="map"></div>
     <div class="map-legend">
       <span><span class="legend-dot" style="background:#E74C3C"></span> Airbnb</span>
@@ -1006,15 +1016,36 @@ const markers = [
   { lat: 48.2070, lng: 16.3780, name: 'Wien Mitte / CAT', desc: 'Airport train terminal', type: 'transport', emoji: '\u{1F687}' },
 ];
 
+// Create layer groups per category
+var layerGroups = {};
 markers.forEach(function(m) {
   var icon = createMarker('marker-' + m.type, m.emoji);
   var url = gmapsUrl(m.name, m.desc);
   var popupHtml = '<a class="popup-link" href="' + url + '" target="_blank"><strong>' + m.name + '</strong></a><br>' +
     m.desc + '<br><a class="popup-directions" href="' + url + '" target="_blank">Open in Google Maps &rarr;</a>';
-  L.marker([m.lat, m.lng], { icon: icon })
-    .addTo(map)
-    .bindPopup(popupHtml);
+  var marker = L.marker([m.lat, m.lng], { icon: icon }).bindPopup(popupHtml);
+  if (!layerGroups[m.type]) layerGroups[m.type] = L.layerGroup().addTo(map);
+  layerGroups[m.type].addLayer(marker);
 });
+
+// Map filter tabs
+(function initMapFilters() {
+  var tabs = document.querySelectorAll('#map-filters .filter-tab');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var filter = this.getAttribute('data-map-filter');
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      this.classList.add('active');
+      Object.keys(layerGroups).forEach(function(type) {
+        if (filter === 'all' || type === filter) {
+          map.addLayer(layerGroups[type]);
+        } else {
+          map.removeLayer(layerGroups[type]);
+        }
+      });
+    });
+  });
+})();
 
 // ========== WEATHER (actual recorded data for April 10-12, 2025) ==========
 (function loadWeather() {
